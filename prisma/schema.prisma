@@ -1,0 +1,124 @@
+// Prisma Schema — SEO Analyzer
+// Source of truth for all database models
+// Run: npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Sites ────────────────────────────────────────────────────────────────────
+model Site {
+  id          String     @id @default(cuid())
+  name        String
+  domain      String     @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  scanTasks   ScanTask[]
+  scores      ScoreHistory[]
+}
+
+// ─── Scan Tasks ───────────────────────────────────────────────────────────────
+model ScanTask {
+  id           String       @id @default(cuid())
+  siteId       String
+  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  status       ScanStatus   @default(PENDING)
+  pagesFound   Int          @default(0)
+  pagesScanned Int          @default(0)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  pageResults  PageResult[]
+}
+
+enum ScanStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// ─── Page Results ─────────────────────────────────────────────────────────────
+model PageResult {
+  id               String   @id @default(cuid())
+  scanTaskId       String
+  scanTask         ScanTask @relation(fields: [scanTaskId], references: [id], onDelete: Cascade)
+
+  url              String
+  httpStatus       Int
+  title            String?
+  titleLength      Int?
+  metaDescription  String?
+  metaDescLength   Int?
+  h1Count          Int      @default(0)
+  h2Count          Int      @default(0)
+  h3Count          Int      @default(0)
+  h1Text           String?
+  imagesTotal      Int      @default(0)
+  imagesMissingAlt Int      @default(0)
+  loadTimeMs       Int?     // milliseconds
+  seoScore         Int      @default(0)
+  crawledAt        DateTime @default(now())
+
+  issues          SeoIssue[]
+  aiSuggestions   AiSuggestion[]
+
+  @@index([scanTaskId])
+  @@index([seoScore])
+}
+
+// ─── SEO Issues ───────────────────────────────────────────────────────────────
+model SeoIssue {
+  id           String      @id @default(cuid())
+  pageResultId String
+  pageResult   PageResult  @relation(fields: [pageResultId], references: [id], onDelete: Cascade)
+
+  category     IssueCategory
+  code         String        // e.g. "MISSING_TITLE", "404_ERROR"
+  description  String
+  impact       Int           // score deduction value
+  createdAt    DateTime      @default(now())
+
+  @@index([pageResultId])
+  @@index([category])
+}
+
+enum IssueCategory {
+  CRITICAL
+  WARNING
+  PASSED
+}
+
+// ─── AI Suggestions ───────────────────────────────────────────────────────────
+model AiSuggestion {
+  id           String     @id @default(cuid())
+  pageResultId String
+  pageResult   PageResult @relation(fields: [pageResultId], references: [id], onDelete: Cascade)
+
+  issueCode    String
+  suggestion   String     @db.Text
+  createdAt    DateTime   @default(now())
+
+  @@index([pageResultId])
+}
+
+// ─── Score History (Trends) ───────────────────────────────────────────────────
+model ScoreHistory {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  avgScore    Float
+  pagesCount  Int
+  recordedAt  DateTime @default(now())
+
+  @@index([siteId, recordedAt])
+}
