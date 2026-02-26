@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from crawler import run_crawler
 from models.orm import ScanTask, Site, PageResult
 from models.schemas import ScanCreate, ScanTaskResponse, PageResultResponse
 from utils.database import get_db
@@ -24,7 +25,7 @@ async def create_scan(
     await db.flush()
     await db.refresh(scan)
 
-    # Phase 2: background_tasks.add_task(run_crawler, scan.id, site.domain)
+    background_tasks.add_task(run_crawler, scan.id, site.domain)
     return scan
 
 
