@@ -1,9 +1,12 @@
+import logging
 import time
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, Browser
+
+logger = logging.getLogger(__name__)
 
 from config import get_settings
 from models.orm import PageResult, ScanTask, SeoIssue, ScoreHistory
@@ -151,6 +154,7 @@ async def run_crawler(scan_id: str, domain: str) -> None:
         })
 
     except Exception as exc:
+        logger.exception("Crawler failed for scan %s: %s", scan_id, exc)
         await db.rollback()
         try:
             scan = await db.get(ScanTask, scan_id)
@@ -161,7 +165,6 @@ async def run_crawler(scan_id: str, domain: str) -> None:
         except Exception:
             pass
         await manager.broadcast(scan_id, {"type": "error", "message": str(exc)})
-        raise
 
     finally:
         await db.close()

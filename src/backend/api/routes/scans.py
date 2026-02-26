@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +14,6 @@ router = APIRouter(prefix="/scans", tags=["scans"])
 @router.post("", response_model=ScanTaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_scan(
     payload: ScanCreate,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     site = await db.get(Site, payload.siteId)
@@ -25,7 +25,16 @@ async def create_scan(
     await db.flush()
     await db.refresh(scan)
 
-    background_tasks.add_task(run_crawler, scan.id, site.domain)
+    # Capture values before the session closes
+    scan_id = scan.id
+    domain = site.domain
+
+    # Schedule crawler as a standalone asyncio task so it runs AFTER this
+    # request's DB session commits (BackgroundTasks run inside the session
+    # scope in modern FastAPI, causing a rollback race condition).
+    loop = asyncio.get_event_loop()
+    loop.call_soon(lambda: asyncio.ensure_future(run_crawler(scan_id, domain)))
+
     return scan
 
 
