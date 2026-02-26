@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.orm import Site, ScoreHistory
-from models.schemas import SiteCreate, SiteResponse, ScoreHistoryResponse
+from models.orm import Site, ScanTask, ScoreHistory
+from models.schemas import SiteCreate, SiteResponse, ScanTaskResponse, ScoreHistoryResponse
 from utils.database import get_db
 
 router = APIRouter(prefix="/sites", tags=["sites"])
@@ -28,6 +28,19 @@ async def create_site(payload: SiteCreate, db: AsyncSession = Depends(get_db)):
     await db.flush()
     await db.refresh(site)
     return site
+
+
+@router.get("/{site_id}/scans", response_model=list[ScanTaskResponse])
+async def get_site_scans(site_id: str, db: AsyncSession = Depends(get_db)):
+    site = await db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site not found")
+    result = await db.execute(
+        select(ScanTask)
+        .where(ScanTask.siteId == site_id)
+        .order_by(ScanTask.createdAt.desc())
+    )
+    return result.scalars().all()
 
 
 @router.get("/{site_id}/trends", response_model=list[ScoreHistoryResponse])

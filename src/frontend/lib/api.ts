@@ -3,6 +3,7 @@ import type {
   ScanTask,
   PageResult,
   ScoreHistory,
+  AiSuggestion,
 } from '@/types/index';
 import type { PageDiagnosis } from '@/types/index';
 
@@ -24,6 +25,8 @@ export const sitesApi = {
   list: (): Promise<Site[]> => request('/sites'),
   create: (payload: { name: string; domain: string }): Promise<Site> =>
     request('/sites', { method: 'POST', body: JSON.stringify(payload) }),
+  scans: (siteId: string): Promise<ScanTask[]> =>
+    request(`/sites/${siteId}/scans`),
   trends: (siteId: string): Promise<ScoreHistory[]> =>
     request(`/sites/${siteId}/trends`),
 };
@@ -39,4 +42,6 @@ export const scansApi = {
 export const pagesApi = {
   diagnose: (pageId: string): Promise<PageDiagnosis> =>
     request(`/pages/${pageId}`),
+  aiSuggest: (pageId: string): Promise<AiSuggestion[]> =>
+    request(`/pages/${pageId}/ai-suggest`, { method: 'POST' }),
 };

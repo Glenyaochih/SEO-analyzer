@@ -69,6 +69,6 @@ export interface ScoreHistory {
 }
 
 export interface WsMessage {
-  type: 'progress' | 'page_result' | 'completed' | 'error';
-  payload: Record<string, unknown>;
+  type: string;
+  [key: string]: unknown;
 }
