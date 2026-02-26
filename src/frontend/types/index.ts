@@ -5,6 +5,7 @@ export type {
   ScanTask,
   PageResult,
   SeoIssue,
+  SeoIssueWithPage,
   AiSuggestion,
   ScoreHistory,
   WsMessage,

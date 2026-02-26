@@ -1,9 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.orm import Site, ScanTask, ScoreHistory
-from models.schemas import SiteCreate, SiteResponse, ScanTaskResponse, ScoreHistoryResponse
+from models.orm import PageResult, ScanTask, SeoIssue, Site, ScoreHistory
+from models.schemas import (
+    SiteCreate,
+    SiteResponse,
+    ScanTaskResponse,
+    ScoreHistoryResponse,
+    SeoIssueWithPageResponse,
+)
 from utils.database import get_db
 
 router = APIRouter(prefix="/sites", tags=["sites"])
@@ -41,6 +49,53 @@ async def get_site_scans(site_id: str, db: AsyncSession = Depends(get_db)):
         .order_by(ScanTask.createdAt.desc())
     )
     return result.scalars().all()
+
+
+@router.get("/{site_id}/issues", response_model=list[SeoIssueWithPageResponse])
+async def get_site_issues(
+    site_id: str,
+    category: Optional[str] = Query(None, description="Filter by CRITICAL, WARNING, or PASSED"),
+    db: AsyncSession = Depends(get_db),
+):
+    site = await db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site not found")
+
+    # Find latest completed scan
+    scan_result = await db.execute(
+        select(ScanTask)
+        .where(ScanTask.siteId == site_id, ScanTask.status == "COMPLETED")
+        .order_by(ScanTask.createdAt.desc())
+        .limit(1)
+    )
+    latest_scan = scan_result.scalar_one_or_none()
+    if not latest_scan:
+        return []
+
+    # Join SeoIssue → PageResult filtered to that scan
+    query = (
+        select(SeoIssue, PageResult.url)
+        .join(PageResult, SeoIssue.pageResultId == PageResult.id)
+        .where(PageResult.scanTaskId == latest_scan.id)
+        .order_by(SeoIssue.category, SeoIssue.impact.desc())
+    )
+    if category and category in ("CRITICAL", "WARNING", "PASSED"):
+        query = query.where(SeoIssue.category == category)
+
+    rows = (await db.execute(query)).all()
+    return [
+        SeoIssueWithPageResponse(
+            id=issue.id,
+            pageResultId=issue.pageResultId,
+            pageUrl=url,
+            category=issue.category,
+            code=issue.code,
+            description=issue.description,
+            impact=issue.impact,
+            createdAt=issue.createdAt,
+        )
+        for issue, url in rows
+    ]
 
 
 @router.get("/{site_id}/trends", response_model=list[ScoreHistoryResponse])

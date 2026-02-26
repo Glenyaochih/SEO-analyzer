@@ -68,6 +68,10 @@ export interface ScoreHistory {
   recordedAt: string;
 }
 
+export interface SeoIssueWithPage extends SeoIssue {
+  pageUrl: string;
+}
+
 export interface WsMessage {
   type: string;
   [key: string]: unknown;

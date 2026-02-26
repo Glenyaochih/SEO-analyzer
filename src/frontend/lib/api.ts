@@ -4,6 +4,7 @@ import type {
   PageResult,
   ScoreHistory,
   AiSuggestion,
+  SeoIssueWithPage,
 } from '@/types/index';
 import type { PageDiagnosis } from '@/types/index';
 
@@ -29,6 +30,10 @@ export const sitesApi = {
     request(`/sites/${siteId}/scans`),
   trends: (siteId: string): Promise<ScoreHistory[]> =>
     request(`/sites/${siteId}/trends`),
+  issues: (siteId: string, category?: string): Promise<SeoIssueWithPage[]> =>
+    request(
+      `/sites/${siteId}/issues${category ? `?category=${category}` : ''}`,
+    ),
 };
 
 export const scansApi = {

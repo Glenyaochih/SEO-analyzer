@@ -95,6 +95,19 @@ class PageDiagnosisResponse(PageResultResponse):
     aiSuggestions: list[AiSuggestionResponse] = []
 
 
+# ─── SEO Issue with Page URL ──────────────────────────────────────────────────
+
+class SeoIssueWithPageResponse(BaseModel):
+    id: str
+    pageResultId: str
+    pageUrl: str
+    category: Literal["CRITICAL", "WARNING", "PASSED"]
+    code: str
+    description: str
+    impact: int
+    createdAt: datetime
+
+
 # ─── Score History ────────────────────────────────────────────────────────────
 
 class ScoreHistoryResponse(BaseModel):
